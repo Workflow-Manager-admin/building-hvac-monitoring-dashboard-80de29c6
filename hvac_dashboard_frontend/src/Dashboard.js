@@ -12,7 +12,12 @@ const COLORS = {
   gridBorder: "#eff0f2",
   notificationBg: "#fef5ef", // notification background
   notificationText: "#b76b32", // notification text
+  ringBg: "#f9fbfc",
+  ringStroke: "#e2e9f1",
+  highlight: "#FFCE7B",
+  danger: "#f2994a",
 };
+
 const ZONES_COUNT = 100;
 const TEMP_RANGE = { min: 17, max: 32 };
 const PERF_RANGE = { min: 30, max: 100 };
@@ -24,16 +29,14 @@ function randomInRange(min, max, fixed = 1) {
 
 // Generate array of zones, each with a zone ID, name, temp, hvac performance
 function generateZones() {
-  // Could use room/zone names like "Room A1", "Room A2", etc.
   const zones = [];
   for (let i = 1; i <= ZONES_COUNT; i++) {
     zones.push({
       id: i,
       name: `Zone ${i}`,
-      room: `Room ${String.fromCharCode(65 + Math.floor((i-1)/10))}${((i-1)%10)+1}`,
+      room: `Room ${String.fromCharCode(65 + Math.floor((i - 1) / 10))}${((i - 1) % 10) + 1}`,
       temperature: randomInRange(TEMP_RANGE.min, TEMP_RANGE.max),
       hvac_performance: randomInRange(PERF_RANGE.min, PERF_RANGE.max),
-      // Add more zone/device metadata here if needed
     });
   }
   return zones;
@@ -58,7 +61,6 @@ function randomizeZones(zones) {
  * Notification panel for maintenance alerts
  */
 function NotificationPanel({ zones }) {
-  // Find underperforming zones
   const alerts = zones
     .filter((z) => z.hvac_performance < 50)
     .map((z) => ({
@@ -76,10 +78,10 @@ function NotificationPanel({ zones }) {
       padding: "16px 24px",
       marginBottom: 24
     }}>
-      <strong style={{color: COLORS.accent}}>⚠ Maintenance Alerts</strong>
-      <ul style={{marginTop: 8, marginBottom: 0, paddingLeft: 24}}>
+      <strong style={{ color: COLORS.accent }}>⚠ Maintenance Alerts</strong>
+      <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 24 }}>
         {alerts.map(a => (
-          <li key={a.id} style={{margin: "8px 0"}}>{a.message}</li>
+          <li key={a.id} style={{ margin: "8px 0" }}>{a.message}</li>
         ))}
       </ul>
     </aside>
@@ -87,106 +89,232 @@ function NotificationPanel({ zones }) {
 }
 
 /**
- * ZoneGrid component: Interactive temperature/performance dashboard in grid layout
+ * ZoneRadialDashboard: Modern circular/radial dashboard showing all zones
  */
-function ZoneGrid({ zones, onSelect, selectedZoneId }) {
-  // Arrange in a 10x10 grid
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(10, 1fr)",
-        gridGap: 12,
-        background: COLORS.bg,
-        borderRadius: 12,
-        border: `1px solid ${COLORS.gridBorder}`,
-        padding: 20,
-        marginBottom: 32,
-        boxShadow: "0 2px 12px rgba(50,140,240,0.03)",
-      }}
-    >
-      {zones.map((zone) => {
-        const tempColor =
-          zone.temperature > 28
-            ? COLORS.accent
-            : zone.temperature < 20
+function ZoneRadialDashboard({ zones, onSelect, selectedZoneId }) {
+  // Settings
+  const SIZE = 540; // SVG canvas size
+  const center = SIZE / 2;
+  const zoneRings = 4;
+  const zonesPerRing = [16, 24, 28, 32];
+  const maxZones = zones.length;
+  const ringRadiusStep = 43;
+  const startRadius = 62;
+  let totalDrawn = 0;
+  const sectors = [];
+
+  zonesPerRing.forEach((count, ringIndex) => {
+    for (let i = 0; i < count && totalDrawn < maxZones; i++, totalDrawn++) {
+      const zone = zones[totalDrawn];
+      // Compute angular position
+      const angle = (2 * Math.PI * i) / count - Math.PI / 2; // start at top
+      const radius = startRadius + ringRadiusStep * ringIndex;
+      const x = center + radius * Math.cos(angle);
+      const y = center + radius * Math.sin(angle);
+      const tempColor =
+        zone.temperature > 28
+          ? COLORS.accent
+          : zone.temperature < 20
             ? COLORS.primary
             : COLORS.secondary;
-        const perfColor =
-          zone.hvac_performance < 50
-            ? COLORS.accent
-            : zone.hvac_performance < 65
+      const perfColor =
+        zone.hvac_performance < 50
+          ? COLORS.accent
+          : zone.hvac_performance < 65
             ? "#f2c94c"
             : COLORS.secondary;
+      const highlight = selectedZoneId === zone.id;
 
-        return (
-          <button
-            type="button"
-            key={zone.id}
-            onClick={() => onSelect && onSelect(zone.id)}
+      sectors.push(
+        <g key={`zone-${zone.id}`}>
+          {/* outer circle */}
+          <circle
+            cx={x}
+            cy={y}
+            r={19.5}
+            fill={highlight ? COLORS.highlight : COLORS.ringBg}
+            stroke={highlight ? COLORS.primary : COLORS.ringStroke}
+            strokeWidth={highlight ? 4 : 1.8}
             style={{
-              border: selectedZoneId === zone.id ? `2px solid ${COLORS.primary}` : `1px solid ${COLORS.gridBorder}`,
-              borderRadius: 7,
-              background: "#f9fbfc",
-              padding: "13px 4px 13px 4px",
+              filter: highlight ? "drop-shadow(0 0 6px #2f80ed55)" : undefined,
               cursor: "pointer",
-              outline: "none",
-              transition: "box-shadow .18s, border-color .18s",
-              boxShadow: selectedZoneId === zone.id ? `0 0 3px ${COLORS.primary}66` : undefined,
-              position: "relative",
-              minWidth: 0
+              transition: "all .11s"
             }}
-            title={`${zone.name} (${zone.room})`}
+            onClick={() => onSelect && onSelect(zone.id)}
+            tabIndex={0}
+            aria-label={`View details for ${zone.name} (${zone.room})`}
+          />
+          {/* Zone temp reading */}
+          <text
+            x={x}
+            y={y + 3.5}
+            textAnchor="middle"
+            fontWeight="bold"
+            fontSize="13"
+            fill={tempColor}
+            style={{ userSelect: "none", pointerEvents: "none", fontFamily: 'inherit' }}
           >
-            <span style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: COLORS.text,
-              display: "block",
-              marginBottom: 3,
-              textOverflow: "ellipsis",
-              overflow: "hidden",
-              whiteSpace: "nowrap",
-            }}>
-              {zone.room}
-            </span>
-            <span style={{
-              fontSize: 17,
-              fontWeight: 800,
-              color: tempColor,
-            }}>
-              {zone.temperature.toFixed(1)}
-              <span style={{
-                fontSize: 12,
-                color: "#bbb",
-                fontWeight: 400,
-                marginLeft: 1
-              }}>°C</span>
-            </span>
-            <div style={{
-              fontSize: 11,
-              marginTop: 1,
-              color: perfColor,
-              fontWeight: 600
-            }}>
-              {zone.hvac_performance.toFixed(0)}% perf
-            </div>
-            {/* Dot indicator for maintenance alert */}
-            {zone.hvac_performance < 50 &&
-              <span style={{
-                display: "block",
-                position: "absolute",
-                top: 4, right: 8,
-                width: 12, height: 12,
-                borderRadius: "50%",
-                background: COLORS.accent,
-                border: "2px solid #fff",
-                boxShadow: "0 0 4px #f2994a88",
-              }} title="Maintenance required"></span>
-            }
-          </button>
-        );
-      })}
+            {zone.temperature.toFixed(1)}°
+          </text>
+          {/* room */}
+          <text
+            x={x}
+            y={y + 16}
+            textAnchor="middle"
+            fontSize="9"
+            fill="#bbb"
+            style={{ userSelect: "none", pointerEvents: "none" }}
+          >
+            {zone.room}
+          </text>
+          {/* performance small arc indicator */}
+          <path
+            d={describeArc(
+              x, y, 18.7,
+              -80,
+              Math.min(280, -80 + (zone.hvac_performance - 30) * 2.3)
+            )}
+            stroke={perfColor}
+            strokeWidth="4"
+            fill="none"
+            opacity={zone.hvac_performance !== undefined ? "1" : "0"}
+          />
+          {/* Underperforming alert dot */}
+          {zone.hvac_performance < 50 && (
+            <circle
+              cx={x + 13 * Math.cos(0.8)}
+              cy={y + 13 * Math.sin(0.8)}
+              r={3.6}
+              fill={COLORS.accent}
+              stroke="#fff"
+              strokeWidth="1"
+              style={{
+                filter: "drop-shadow(0 0 2.5px #f2994a77)"
+              }}
+            />
+          )}
+        </g>
+      );
+    }
+  });
+
+  // Helper: describe SVG arc path for performance ring
+  function describeArc(cx, cy, r, startAngle, endAngle) {
+    const toRad = (angle) => (angle - 90) * Math.PI / 180;
+    const start = {
+      x: cx + r * Math.cos(toRad(startAngle)),
+      y: cy + r * Math.sin(toRad(startAngle)),
+    };
+    const end = {
+      x: cx + r * Math.cos(toRad(endAngle)),
+      y: cy + r * Math.sin(toRad(endAngle)),
+    };
+    const largeArc = endAngle - startAngle <= 180 ? "0" : "1";
+    return [
+      "M", start.x, start.y,
+      "A", r, r, 0, largeArc, 1, end.x, end.y,
+    ].join(" ");
+  }
+
+  // Decorative background rings
+  const bgRings = [];
+  for (let i = 0; i < zoneRings; ++i) {
+    bgRings.push(
+      <circle
+        key={`bgring-${i}`}
+        cx={center}
+        cy={center}
+        r={startRadius + i * ringRadiusStep}
+        fill="none"
+        stroke={COLORS.ringStroke}
+        strokeWidth="1.2"
+      />
+    );
+  }
+
+  // Optional: add legend
+  return (
+    <div style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 34,
+      width: "100%",
+      minHeight: SIZE,
+      overflow: "auto"
+    }}>
+      <svg
+        width={SIZE}
+        height={SIZE}
+        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        tabIndex={0}
+        role="img"
+        aria-label="HVAC building temperature and status map"
+        style={{
+          outline: "none",
+          background: "#fff",
+          borderRadius: "50%",
+          boxShadow: "0 2px 13px rgba(180, 212, 240,0.09)",
+          border: `1.5px solid ${COLORS.gridBorder}`,
+        }}
+      >
+        {/* Decorative back rings */}
+        {bgRings}
+        {/* Zone glyphs */}
+        {sectors}
+        {/* Circular center label */}
+        <circle
+          cx={center}
+          cy={center}
+          r={34}
+          fill={COLORS.primary}
+          opacity={0.07}
+        />
+        <text
+          x={center} y={center - 2}
+          textAnchor="middle"
+          fontSize="23"
+          fill={COLORS.primary}
+          fontWeight={900}
+        >HVAC</text>
+        <text
+          x={center}
+          y={center + 18}
+          textAnchor="middle"
+          fontSize="9"
+          fill="#999"
+        >Building</text>
+      </svg>
+      {/* Legend */}
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        marginLeft: "1.8rem",
+        justifyContent: "center",
+        fontSize: "13.2px",
+        color: "#767676"
+      }}>
+        <div style={{ marginBottom: 7 }}>
+          <span style={{ display: "inline-block", width: 13, height: 8, borderRadius: 1, background: COLORS.primary, marginRight: 5 }} /> Cool/low temp
+        </div>
+        <div style={{ marginBottom: 7 }}>
+          <span style={{ display: "inline-block", width: 13, height: 8, borderRadius: 1, background: COLORS.secondary, marginRight: 5 }} /> Good/neutral
+        </div>
+        <div style={{ marginBottom: 7 }}>
+          <span style={{ display: "inline-block", width: 13, height: 8, borderRadius: 1, background: COLORS.accent, marginRight: 5 }} /> Hot/high, {`<50%`} perf
+        </div>
+        <div>
+          <span style={{
+            display: "inline-block",
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: COLORS.accent,
+            border: "1.5px solid #fff",
+            marginRight: 4
+          }} /> Underperforming
+        </div>
+      </div>
     </div>
   );
 }
@@ -222,7 +350,7 @@ function ControlsBar({ filterValue, setFilterValue }) {
         onChange={e => setFilterValue(e.target.value)}
         aria-label="Filter zones by name or room"
       />
-      <span style={{fontSize: 13, color: "#999"}}>({ZONES_COUNT} total zones)</span>
+      <span style={{ fontSize: 13, color: "#999" }}>({ZONES_COUNT} total zones)</span>
     </div>
   );
 }
@@ -236,8 +364,8 @@ function ZoneDetails({ zone, onClose }) {
     zone.hvac_performance < 50
       ? COLORS.accent
       : zone.hvac_performance < 65
-      ? "#f2c94c"
-      : COLORS.secondary;
+        ? "#f2c94c"
+        : COLORS.secondary;
 
   return (
     <div style={{
@@ -264,16 +392,16 @@ function ZoneDetails({ zone, onClose }) {
         cursor: "pointer",
         color: "#bbb",
       }} title="Close">&times;</button>
-      <h3 style={{marginTop: 0, color: COLORS.primary}}>{zone.name} ({zone.room})</h3>
+      <h3 style={{ marginTop: 0, color: COLORS.primary }}>{zone.name} ({zone.room})</h3>
       <div>
-        <span style={{fontWeight: 600}}>Temp:</span>{" "}
-        <span style={{fontWeight: 700, color: COLORS.accent, fontSize: 22}}>
+        <span style={{ fontWeight: 600 }}>Temp:</span>{" "}
+        <span style={{ fontWeight: 700, color: COLORS.accent, fontSize: 22 }}>
           {zone.temperature.toFixed(1)}°C
         </span>
       </div>
       <div>
-        <span style={{fontWeight: 600}}>HVAC Performance:</span>{" "}
-        <span style={{fontWeight: 700, color: perfColor, fontSize: 20}}>
+        <span style={{ fontWeight: 600 }}>HVAC Performance:</span>{" "}
+        <span style={{ fontWeight: 700, color: perfColor, fontSize: 20 }}>
           {zone.hvac_performance.toFixed(1)}%
         </span>
         {zone.hvac_performance < 50 && (
@@ -288,20 +416,18 @@ function ZoneDetails({ zone, onClose }) {
 function Dashboard() {
   // Zones state: array of zones with dynamic stats
   const [zones, setZones] = useState(() => generateZones());
-  // Filter bar state
   const [filter, setFilter] = useState("");
-  // Expanded/selected zone
   const [selectedZone, setSelectedZone] = useState(null);
 
   // Simulate real-time updates
   useEffect(() => {
     const interval = setInterval(() => {
       setZones(oldZones => randomizeZones(oldZones));
-    }, 2200); // ~2.2 seconds
+    }, 2200);
     return () => clearInterval(interval);
   }, []);
 
-  // Filtering logic: match room or zone name (case-insensitive)
+  // Filtering logic
   const filteredZones = useMemo(() => {
     if (!filter) return zones;
     const term = filter.toLowerCase();
@@ -312,13 +438,12 @@ function Dashboard() {
     );
   }, [zones, filter]);
 
-  // Selected zone object
   const currentSelectedZone = useMemo(
     () => zones.find((z) => z.id === selectedZone),
     [selectedZone, zones]
   );
 
-  // Keyboard event to close expanded dialog with ESC
+  // Keyboard event for ESC to close expanded card
   useEffect(() => {
     if (!selectedZone) return;
     function handler(e) {
@@ -328,7 +453,6 @@ function Dashboard() {
     return () => window.removeEventListener("keydown", handler);
   }, [selectedZone]);
 
-  // Filtering/search, dashboard, notifications
   return (
     <main style={{
       maxWidth: 1100,
@@ -346,7 +470,7 @@ function Dashboard() {
       </section>
       <NotificationPanel zones={zones} />
       <ControlsBar filterValue={filter} setFilterValue={setFilter} />
-      <ZoneGrid
+      <ZoneRadialDashboard
         zones={filteredZones}
         onSelect={setSelectedZone}
         selectedZoneId={selectedZone}
