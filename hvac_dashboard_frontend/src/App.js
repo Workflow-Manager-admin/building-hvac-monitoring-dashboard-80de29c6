@@ -1,47 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useEffect, useState } from "react";
+import "./App.css";
+import Dashboard from "./Dashboard";
+
+/**
+ * Loads environment variables.
+ * This is future-proofing, for instance loading a baseURL, currently unused.
+ * In real deployment, would use process.env, VITE_, REACT_APP_ etc, and .env config.
+ */
+function useEnvVar(name, fallback) {
+  // eslint-disable-next-line no-undef
+  const val = typeof process !== "undefined" && process.env && process.env[name];
+  return val || fallback;
+}
 
 // PUBLIC_INTERFACE
 function App() {
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState("light");
 
-  // Effect to apply theme to document element
+  // Apply theme (light only, but allow toggle for modern feel and optionality)
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
-
-  // PUBLIC_INTERFACE
   const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
 
+  // Example: load an env var for future API endpoints (not currently used)
+  // const apiBase = useEnvVar("REACT_APP_API_BASE_URL", "http://localhost:5000/api");
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <button 
-          className="theme-toggle" 
-          onClick={toggleTheme}
-          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
-        </button>
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <p>
-          Current theme: <strong>{theme}</strong>
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="App" style={{ minHeight: "100vh", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+      {/* Optional: Theme toggle */}
+      <button
+        className="theme-toggle"
+        onClick={toggleTheme}
+        aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+      >
+        {theme === "light" ? "🌙 Dark" : "☀️ Light"}
+      </button>
+      <Dashboard />
     </div>
   );
 }

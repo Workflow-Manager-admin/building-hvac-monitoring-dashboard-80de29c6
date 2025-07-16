@@ -1,13 +1,43 @@
 /* CSS Variables for Theme Management */
 :root {
-  /* Light theme colors */
-  --bg-primary: #ffffff;
+  /* Light theme colors; some are overridden for HVAC color palette */
+  --bg-primary: #fff;
   --bg-secondary: #f8f9fa;
-  --text-primary: #282c34;
-  --text-secondary: #61dafb;
-  --border-color: #e9ecef;
-  --button-bg: #007bff;
-  --button-text: #ffffff;
+  --text-primary: #222;
+  --text-secondary: #56cc9d;
+  --border-color: #eff0f2;
+  --button-bg: #2f80ed;
+  --button-text: #fff;
+  --accent: #f2994a;
+  --hvac-primary: #2f80ed;
+  --hvac-secondary: #56cc9d;
+  --hvac-accent: #f2994a;
+  --notification-bg: #fef5ef;
+  --notification-text: #b76b32;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #181a1d;
+  --bg-secondary: #23282e;
+  --text-primary: #eee;
+  --text-secondary: #90ecb7;
+  --border-color: #202125;
+  --button-bg: #3548b2;
+  --button-text: #fff;
+  --accent: #f2994a;
+  --hvac-primary: #769bdf;
+  --hvac-secondary: #7dcec7;
+  --hvac-accent: #f2b57a;
+  --notification-bg: #301c11;
+  --notification-text: #ffbe7b;
+}
+
+/* App layout */
+.App {
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: system-ui, 'Segoe UI', 'Roboto', Arial, sans-serif;
 }
 
 [data-theme="dark"] {
