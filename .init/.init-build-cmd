@@ -1,0 +1,4 @@
+{
+    "command": "npm install && npx tsc --noEmit && npm test -- --ci",
+    "working_directory": "/home/kavia/workspace/code-generation/building-hvac-monitoring-dashboard-80de29c6/hvac_dashboard_frontend"
+}
